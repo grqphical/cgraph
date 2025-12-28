@@ -79,17 +79,21 @@ inline void image_set_pixel(Image *img, int x, int y, Colour c) {
 
 inline void image_draw_rect(Image *img, int x, int y, int width, int height,
                             Colour c) {
-  if (x + width >= img->width) {
-    width = img->width - x;
-  }
-  if (y + height >= img->height) {
-    height = img->height - y;
-  }
+  int endX = x + width;
+  int endY = y + height;
 
-  for (int i = y; i < height; i++) {
+  if (endX > img->width)
+    endX = img->width;
+  if (endY > img->height)
+    endY = img->height;
+
+  int startX = (x < 0) ? 0 : x;
+  int startY = (y < 0) ? 0 : y;
+
+  for (int i = startY; i < endY; i++) {
     int rowOffset = i * img->width;
 
-    for (int j = x; j < width; j++) {
+    for (int j = startX; j < endX; j++) {
       img->data[rowOffset + j] = c;
     }
   }

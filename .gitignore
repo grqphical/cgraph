@@ -1,5 +1,6 @@
 tests
 *.ppm
 cgraph_tests.c
+Makefile
 
 .clangd

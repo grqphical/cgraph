@@ -388,7 +388,7 @@ inline void cg_bargraph_add_bar(cg_bargraph *bg, const char *label, int amount,
 
 inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
   const int default_size = 512;
-  const int default_scale = 4;
+  const int default_title_scale = 4;
   const int default_title_y_pos = 10;
 
   cg_image *img = cg_new_image(default_size, default_size);
@@ -397,11 +397,24 @@ inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
 
   // render title
   int title_len = strlen(bg->title);
-  int title_width = title_len * CGRAPH_FONT_SIZE * default_scale;
+  int title_width = title_len * CGRAPH_FONT_SIZE * default_title_scale;
   int title_position_x = default_size / 2 - title_width / 2;
 
-  cg_image_write_text(img, bg->title, default_scale, title_position_x,
+  cg_image_write_text(img, bg->title, default_title_scale, title_position_x,
                       default_title_y_pos, (cg_colour){0, 0, 0});
+
+  // render border lines
+  const int graph_padding = 40;
+  int graph_vertical_offset = 10 + CGRAPH_FONT_SIZE * default_title_scale;
+
+  cg_image_draw_rect(
+      img, graph_padding, graph_vertical_offset, default_title_scale,
+      default_size - graph_vertical_offset * 2, (cg_colour){0, 0, 0});
+
+  cg_image_draw_rect(img, graph_padding,
+                     default_size - graph_vertical_offset - default_title_scale,
+                     default_size - graph_padding * 2, default_title_scale,
+                     (cg_colour){0, 0, 0});
 
   return img;
 }

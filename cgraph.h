@@ -39,9 +39,9 @@
 //
 // The font used by cgraph is an 8x8 simple font sourced from:
 // <https://github.com/dhepper/font8x8/>
-#define FONT_SIZE 8
+#define CGRAPH_FONT_SIZE 8
 
-char font8x8_basic[128][8] = {
+const char cg__font8x8_basic[128][8] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // U+0000 (nul)
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // U+0001
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // U+0002
@@ -173,42 +173,66 @@ char font8x8_basic[128][8] = {
 };
 
 // ============================================================
-// Image Output
+// cg_image Output
 // ============================================================
 typedef struct {
   int r, g, b;
-} Colour;
+} cg_colour;
 
-typedef enum output_format { PPM } OutputFormat;
+typedef enum output_format { PPM } cg_output_format;
 
 typedef struct {
-  Colour *data;
+  cg_colour *data;
   int width;
   int height;
-} Image;
+} cg_image;
 
-Image *new_image(int width, int height);
-void image_set_pixel(Image *img, int x, int y, Colour c);
-void image_draw_rect(Image *img, int x, int y, int width, int height, Colour c);
-void image_write_text(Image *img, const char *text, int scale, int x_pos,
-                      int y_pos, Colour c);
-void image_export(Image *img, const char *output_file, OutputFormat format);
+cg_image *cg_new_image(int width, int height);
+void cg_image_set_pixel(cg_image *img, int x, int y, cg_colour c);
+void cg_image_draw_rect(cg_image *img, int x, int y, int width, int height,
+                        cg_colour c);
+void cg_image_write_text(cg_image *img, const char *text, int scale, int x_pos,
+                         int y_pos, cg_colour c);
+void cg_image_export(cg_image *img, const char *output_file,
+                     cg_output_format format);
+
+// ============================================================
+// Graphs
+// ============================================================
+
+typedef struct {
+  int amount;
+  cg_colour colour;
+  char *label;
+} cg_bar;
+
+typedef struct {
+  cg_bar *bars;
+  int bar_count;
+  char *title;
+} cg_bargraph;
+
+cg_bargraph *cg_new_bargraph(const char *title);
+void cg_bargraph_add_bar(cg_bargraph *bg, const char *label, int amount,
+                         cg_colour c);
+void cg_bargraph_render(cg_bargraph *bg, const char *output_file,
+                        cg_output_format format);
 
 #ifdef CGRAPH_IMPLEMENTATION
 
 // ============================================================
-// Image Output
+// cg_image Output
 // ============================================================
-inline Image *new_image(int width, int height) {
-  Image *img = (Image *)malloc(sizeof(Image));
+inline cg_image *cg_new_image(int width, int height) {
+  cg_image *img = (cg_image *)malloc(sizeof(cg_image));
   img->width = width;
   img->height = height;
-  img->data = (Colour *)malloc(sizeof(Colour) * width * height);
+  img->data = (cg_colour *)malloc(sizeof(cg_colour) * width * height);
 
   return img;
 }
 
-inline void image_set_pixel(Image *img, int x, int y, Colour c) {
+inline void cg_image_set_pixel(cg_image *img, int x, int y, cg_colour c) {
   if (x >= img->width || y >= img->height) {
     perror("coordinate outside of image range");
     exit(2);
@@ -218,8 +242,8 @@ inline void image_set_pixel(Image *img, int x, int y, Colour c) {
   img->data[index] = c;
 }
 
-inline void image_draw_rect(Image *img, int x, int y, int width, int height,
-                            Colour c) {
+inline void cg_image_draw_rect(cg_image *img, int x, int y, int width,
+                               int height, cg_colour c) {
   int endX = x + width;
   int endY = y + height;
 
@@ -240,11 +264,11 @@ inline void image_draw_rect(Image *img, int x, int y, int width, int height,
   }
 }
 
-inline void image_write_text(Image *img, const char *text, int scale, int x_pos,
-                             int y_pos, Colour c) {
-  int width = strlen(text) * FONT_SIZE;
+inline void cg_image_write_text(cg_image *img, const char *text, int scale,
+                                int x_pos, int y_pos, cg_colour c) {
+  int width = strlen(text) * CGRAPH_FONT_SIZE;
   int endX = x_pos + width;
-  int endY = y_pos + FONT_SIZE;
+  int endY = y_pos + CGRAPH_FONT_SIZE;
 
   if (endX > img->width)
     endX = img->width;
@@ -255,7 +279,7 @@ inline void image_write_text(Image *img, const char *text, int scale, int x_pos,
   int startY = (y_pos < 0) ? 0 : y_pos;
 
   for (int i = 0; i < strlen(text); i++) {
-    char *bitmap = font8x8_basic[text[i]];
+    char *bitmap = cg__font8x8_basic[text[i]];
 
     for (int x = 0; x < 8; x++) {
       for (int y = 0; y < 8; y++) {
@@ -263,22 +287,15 @@ inline void image_write_text(Image *img, const char *text, int scale, int x_pos,
         if (!(bitmap[y] & 1 << x))
           continue;
 
-        int drawPositionX = startX + (i * FONT_SIZE * scale) + x * scale;
-        image_draw_rect(img, drawPositionX, y_pos + y * scale, scale, scale, c);
+        int drawPositionX = startX + (i * CGRAPH_FONT_SIZE * scale) + x * scale;
+        cg_image_draw_rect(img, drawPositionX, y_pos + y * scale, scale, scale,
+                           c);
       }
     }
   }
 }
 
-static int digits(int n) {
-  int total = 0;
-  for (int i = 0; i <= n; i *= 10) {
-    total += 1;
-  }
-  return total;
-}
-
-static void image_export_ppm(Image *img, const char *output_file) {
+static void cg_image_export_ppm(cg_image *img, const char *output_file) {
   FILE *fptr = fopen(output_file, "wb");
   if (!fptr)
     return;
@@ -293,17 +310,23 @@ static void image_export_ppm(Image *img, const char *output_file) {
   fclose(fptr);
 }
 
-inline void image_export(Image *img, const char *output_file,
-                         OutputFormat format) {
+inline void cg_image_export(cg_image *img, const char *output_file,
+                            cg_output_format format) {
   switch (format) {
   case PPM:
-    image_export_ppm(img, output_file);
+    cg_image_export_ppm(img, output_file);
     break;
   default:
     perror("unsupported image format for cgraph");
     exit(3);
   }
 }
+
+// ============================================================
+// Graphs
+// ============================================================
+
+cg_bargraph *cg_new_bargraph(const char *title);
 
 #endif
 

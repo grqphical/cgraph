@@ -28,10 +28,14 @@
 #ifndef CGRAPH_H
 #define CGRAPH_H
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+// ============================================================
+// Image Output
+// ============================================================
 typedef struct {
   int r, g, b;
 } Colour;
@@ -46,9 +50,14 @@ typedef struct {
 
 Image *new_image(int width, int height);
 void image_set_pixel(Image *img, int x, int y, Colour c);
+void image_draw_rect(Image *img, int x, int y, int width, int height, Colour c);
 void image_export(Image *img, const char *output_file, OutputFormat format);
 
 // #ifdef CGRAPH_IMPLEMENTATION
+
+// ============================================================
+// Image Output
+// ============================================================
 inline Image *new_image(int width, int height) {
   Image *img = (Image *)malloc(sizeof(Image));
   img->width = width;
@@ -66,6 +75,24 @@ inline void image_set_pixel(Image *img, int x, int y, Colour c) {
 
   int index = (y * img->width) + x;
   img->data[index] = c;
+}
+
+inline void image_draw_rect(Image *img, int x, int y, int width, int height,
+                            Colour c) {
+  if (x + width >= img->width) {
+    width = img->width - x;
+  }
+  if (y + height >= img->height) {
+    height = img->height - y;
+  }
+
+  for (int i = y; i < height; i++) {
+    int rowOffset = i * img->width;
+
+    for (int j = x; j < width; j++) {
+      img->data[rowOffset + j] = c;
+    }
+  }
 }
 
 static int digits(int n) {
@@ -96,6 +123,10 @@ inline void image_export(Image *img, const char *output_file,
   switch (format) {
   case PPM:
     image_export_ppm(img, output_file);
+    break;
+  default:
+    perror("unsupported image format for cgraph");
+    exit(3);
   }
 }
 

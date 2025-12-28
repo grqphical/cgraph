@@ -2,6 +2,8 @@
 
 A single header C99 library to create graphs and plots.
 
+⚠️Currently in extremely early alpha
+
 ## Functional Goals
 - Allow users to create a variety of graphs
 - Export said graphs to a variety of image formats

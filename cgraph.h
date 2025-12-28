@@ -179,6 +179,9 @@ typedef struct {
   int r, g, b;
 } cg_colour;
 
+// for any Americans using this library
+#define cg_color cg_colour
+
 typedef enum output_format { PPM } cg_output_format;
 
 typedef struct {
@@ -206,8 +209,21 @@ typedef struct {
   char *label;
 } cg_bar;
 
+// Dynamic Array to store bars inside of the bar graph
+#define cg__INITIAL_DA_CAPACITY 256
+
 typedef struct {
-  cg_bar *bars;
+  cg_bar *items;
+  size_t count;
+  size_t capacity;
+} cg__bar_dynamic_array;
+
+static cg__bar_dynamic_array *cg__new_bar_dynamic_array();
+static void cg__bar_dynamic_array_append(cg__bar_dynamic_array *da,
+                                         cg_bar element);
+
+typedef struct {
+  cg__bar_dynamic_array *bars;
   int bar_count;
   char *title;
 } cg_bargraph;
@@ -215,8 +231,9 @@ typedef struct {
 cg_bargraph *cg_new_bargraph(const char *title);
 void cg_bargraph_add_bar(cg_bargraph *bg, const char *label, int amount,
                          cg_colour c);
-void cg_bargraph_render(cg_bargraph *bg, const char *output_file,
-                        cg_output_format format);
+cg_image *cg_bargraph_render(cg_bargraph *bg, const char *output_file,
+                             cg_output_format format);
+void cg_bargraph_free(cg_bargraph *bg);
 
 #ifdef CGRAPH_IMPLEMENTATION
 
@@ -326,8 +343,59 @@ inline void cg_image_export(cg_image *img, const char *output_file,
 // Graphs
 // ============================================================
 
-cg_bargraph *cg_new_bargraph(const char *title);
+cg_bargraph *cg_new_bargraph(const char *title) {
+  cg_bargraph *bg = (cg_bargraph *)malloc(sizeof(cg_bargraph));
+  bg->title = malloc(strlen(title) + 1);
+  strcpy(bg->title, title);
+  bg->bar_count = 0;
+  bg->bars = cg__new_bar_dynamic_array();
 
+  return bg;
+}
+
+static inline cg__bar_dynamic_array *cg__new_bar_dynamic_array() {
+  cg__bar_dynamic_array *da =
+      (cg__bar_dynamic_array *)malloc(sizeof(cg__bar_dynamic_array));
+  da->capacity = cg__INITIAL_DA_CAPACITY;
+  da->count = 0;
+  da->items = (cg_bar *)malloc(da->capacity * sizeof(cg_bar));
+
+  return da;
+}
+
+static inline void cg__bar_dynamic_array_append(cg__bar_dynamic_array *da,
+                                                cg_bar element) {
+  if (da->count >= da->capacity) {
+    da->capacity *= 2;
+    da->items = realloc(da->items, da->capacity * sizeof(*da->items));
+  }
+
+  da->items[da->count++] = element;
+}
+
+void cg_bargraph_add_bar(cg_bargraph *bg, const char *label, int amount,
+                         cg_colour c) {
+
+  cg_bar bar;
+
+  bar.amount = amount;
+  bar.colour = c;
+  bar.label = malloc(strlen(label) + 1);
+  strcpy(bar.label, label);
+
+  cg__bar_dynamic_array_append(bg->bars, bar);
+  bg->bar_count++;
+}
+
+void cg_bargraph_free(cg_bargraph *bg) {
+  for (int i = 0; i < bg->bars->count; i++) {
+    free(bg->bars->items[i].label);
+  }
+  free(bg->bars->items);
+  free(bg->bars);
+  free(bg->title);
+  free(bg);
+}
 #endif
 
 #endif

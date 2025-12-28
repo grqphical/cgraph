@@ -1,3 +1,3 @@
 test:
-	@gcc -o tests cgraph_tests.c
+	@gcc -o tests -std=c99 cgraph_tests.c
 	@./tests

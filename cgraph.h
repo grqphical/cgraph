@@ -194,7 +194,7 @@ void image_write_text(Image *img, const char *text, int scale, int x_pos,
                       int y_pos, Colour c);
 void image_export(Image *img, const char *output_file, OutputFormat format);
 
-// #ifdef CGRAPH_IMPLEMENTATION
+#ifdef CGRAPH_IMPLEMENTATION
 
 // ============================================================
 // Image Output
@@ -305,6 +305,6 @@ inline void image_export(Image *img, const char *output_file,
   }
 }
 
-// #endif
+#endif
 
 #endif

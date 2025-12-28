@@ -311,7 +311,7 @@ inline void cg_image_write_text(cg_image *img, const char *text, int scale,
   }
 }
 
-static void cg_image_export_ppm(cg_image *img, const char *output_file) {
+static void cg__image_export_ppm(cg_image *img, const char *output_file) {
   FILE *fptr = fopen(output_file, "wb");
   if (!fptr)
     return;
@@ -330,7 +330,7 @@ inline void cg_image_export(cg_image *img, const char *output_file,
                             cg_output_format format) {
   switch (format) {
   case PPM:
-    cg_image_export_ppm(img, output_file);
+    cg__image_export_ppm(img, output_file);
     break;
   default:
     perror("unsupported image format for cgraph");

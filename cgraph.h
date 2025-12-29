@@ -34,6 +34,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PI 3.14159265358979323846
+
 // ============================================================
 // Font Rendering
 // ============================================================
@@ -197,10 +199,16 @@ cg_image *cg_new_image(int width, int height);
 void cg_image_set_pixel(cg_image *img, int x, int y, cg_colour c);
 void cg_image_draw_rect(cg_image *img, int x, int y, int width, int height,
                         cg_colour c);
+void cg_image_draw_circle(cg_image *img, int x_center, int y_center, int radius,
+                          cg_colour c);
+void cg_image_draw_circle_slice(cg_image *img, int x_center, int y_center,
+                                int radius, int start_angle, float percentage,
+                                cg_colour c);
 void cg_image_write_text(cg_image *img, const char *text, int scale, int x_pos,
                          int y_pos, cg_colour c);
 void cg_image_export(cg_image *img, const char *output_file,
                      cg_output_format format);
+void cg_image_free(cg_image *img);
 
 // ============================================================
 // Graphs
@@ -283,6 +291,54 @@ inline void cg_image_draw_rect(cg_image *img, int x, int y, int width,
   }
 }
 
+inline void cg_image_draw_circle(cg_image *img, int x_center, int y_center,
+                                 int radius, cg_colour c) {
+
+  for (int y = -radius; y <= radius; y++) {
+    for (int x = -radius; x <= radius; x++) {
+      if (x * x + y * y < radius * radius) {
+        cg_image_set_pixel(img, x_center + x, y_center + y, c);
+      }
+    }
+  }
+}
+
+inline void cg_image_draw_circle_slice(cg_image *img, int x_center,
+                                       int y_center, int radius,
+                                       int start_angle, float percentage,
+                                       cg_colour c) {
+  float start_angle_rads = (float)start_angle * (PI / 180);
+  start_angle_rads = fmodf(start_angle_rads, 2.0f * PI);
+
+  float sweep_rad = (percentage / 100.0f) * (2.0f * PI);
+  float end_rad = start_angle_rads + sweep_rad;
+
+  for (int x = 0; x < img->width; x++) {
+    for (int y = 0; y < img->height; y++) {
+      float dx = x - x_center;
+      float dy = y - y_center;
+
+      float dist_sq = dx * dx + dy * dy;
+
+      if (dist_sq < radius * radius) {
+        float angle = atan2(dy, dx);
+        if (angle < 0)
+          angle += 2.0 * PI;
+
+        if (end_rad > 2.0f * PI) {
+          if (angle >= start_angle_rads || angle <= (end_rad - 2.0f * PI)) {
+            cg_image_set_pixel(img, x, y, c);
+          }
+        } else {
+          if (angle >= start_angle_rads && angle <= end_rad) {
+            cg_image_set_pixel(img, x, y, c);
+          }
+        }
+      }
+    }
+  }
+}
+
 inline void cg_image_write_text(cg_image *img, const char *text, int scale,
                                 int x_pos, int y_pos, cg_colour c) {
   int width = strlen(text) * CGRAPH_FONT_SIZE;
@@ -339,6 +395,11 @@ inline void cg_image_export(cg_image *img, const char *output_file,
     perror("unsupported image format for cgraph");
     exit(3);
   }
+}
+
+void cg_image_free(cg_image *img) {
+  free(img->data);
+  free(img);
 }
 
 // ============================================================

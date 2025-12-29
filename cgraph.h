@@ -230,20 +230,54 @@ typedef struct {
 } cg__bar_dynamic_array;
 
 static cg__bar_dynamic_array *cg__new_bar_dynamic_array();
-static void cg__bar_dynamic_array_append(cg__bar_dynamic_array *da,
-                                         cg_bar element);
+
+#define cg__dynamic_array_append(da, element)                                  \
+  do {                                                                         \
+    if (da->count >= da->capacity) {                                           \
+      da->capacity *= 2;                                                       \
+      da->items = realloc(da->items, da->capacity * sizeof(*da->items));       \
+    }                                                                          \
+    da->items[da->count++] = element;                                          \
+  } while (0);
 
 typedef struct {
   cg__bar_dynamic_array *bars;
   int bar_count;
   char *title;
-} cg_bargraph;
+} cg_bar_graph;
 
-cg_bargraph *cg_new_bargraph(const char *title);
-void cg_bargraph_add_bar(cg_bargraph *bg, const char *label, int amount,
-                         cg_colour c);
-cg_image *cg_bargraph_render(cg_bargraph *bg);
-void cg_bargraph_free(cg_bargraph *bg);
+cg_bar_graph *cg_new_bar_graph(const char *title);
+void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label, int amount,
+                          cg_colour c);
+cg_image *cg_bar_graph_render(cg_bar_graph *bg);
+void cg_bar_graph_free(cg_bar_graph *bg);
+
+typedef struct {
+  int amount;
+  char *label;
+  cg_colour colour;
+} cg_slice;
+
+typedef struct {
+  cg_slice *items;
+  size_t count;
+  size_t capacity;
+} cg__slice_dynamic_array;
+
+static cg__slice_dynamic_array *cg__new_slice_dynamic_array();
+
+typedef struct {
+  cg__slice_dynamic_array *slices;
+  int slice_count;
+  int total;
+  char *title;
+} cg_pie_graph;
+
+cg_pie_graph *cg_new_pie_graph(const char *title);
+void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
+                            cg_colour c);
+cg_image *cg_pie_graph_render(cg_pie_graph *pg);
+void cg_pie_graph_free(cg_pie_graph *pg);
 
 #ifdef CGRAPH_IMPLEMENTATION
 
@@ -406,8 +440,8 @@ void cg_image_free(cg_image *img) {
 // Graphs
 // ============================================================
 
-cg_bargraph *cg_new_bargraph(const char *title) {
-  cg_bargraph *bg = (cg_bargraph *)malloc(sizeof(cg_bargraph));
+cg_bar_graph *cg_new_bar_graph(const char *title) {
+  cg_bar_graph *bg = (cg_bar_graph *)malloc(sizeof(cg_bar_graph));
   bg->title = malloc(strlen(title) + 1);
   strcpy(bg->title, title);
   bg->bar_count = 0;
@@ -426,18 +460,8 @@ static inline cg__bar_dynamic_array *cg__new_bar_dynamic_array() {
   return da;
 }
 
-static inline void cg__bar_dynamic_array_append(cg__bar_dynamic_array *da,
-                                                cg_bar element) {
-  if (da->count >= da->capacity) {
-    da->capacity *= 2;
-    da->items = realloc(da->items, da->capacity * sizeof(*da->items));
-  }
-
-  da->items[da->count++] = element;
-}
-
-inline void cg_bargraph_add_bar(cg_bargraph *bg, const char *label, int amount,
-                                cg_colour c) {
+inline void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label,
+                                 int amount, cg_colour c) {
 
   cg_bar bar;
 
@@ -446,7 +470,7 @@ inline void cg_bargraph_add_bar(cg_bargraph *bg, const char *label, int amount,
   bar.label = malloc(strlen(label) + 1);
   strcpy(bar.label, label);
 
-  cg__bar_dynamic_array_append(bg->bars, bar);
+  cg__dynamic_array_append(bg->bars, bar);
   bg->bar_count++;
 }
 
@@ -477,7 +501,7 @@ static float cg__nice_num(float localRange, bool round) {
   return niceFraction * pow(10, exponent);
 }
 
-inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
+inline cg_image *cg_bar_graph_render(cg_bar_graph *bg) {
   const int canvas_size = 512;
   const int padding = 60; // margin around the whole graph
   const int title_y = 20;
@@ -568,7 +592,7 @@ inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
   return img;
 }
 
-inline void cg_bargraph_free(cg_bargraph *bg) {
+inline void cg_bar_graph_free(cg_bar_graph *bg) {
   for (int i = 0; i < bg->bars->count; i++) {
     free(bg->bars->items[i].label);
   }
@@ -577,6 +601,75 @@ inline void cg_bargraph_free(cg_bargraph *bg) {
   free(bg->title);
   free(bg);
 }
+
+inline static cg__slice_dynamic_array *cg__new_slice_dynamic_array() {
+  cg__slice_dynamic_array *da =
+      (cg__slice_dynamic_array *)malloc(sizeof(cg__slice_dynamic_array));
+  da->capacity = cg__INITIAL_DA_CAPACITY;
+  da->count = 0;
+  da->items = (cg_slice *)malloc(da->capacity * sizeof(cg_slice));
+
+  return da;
+}
+
+inline cg_pie_graph *cg_new_pie_graph(const char *title) {
+  cg_pie_graph *pg = (cg_pie_graph *)malloc(sizeof(cg_pie_graph));
+  pg->slice_count = 0;
+  pg->slices = cg__new_slice_dynamic_array();
+  pg->total = 0;
+  pg->title = malloc(strlen(title) + 1);
+  strcpy(pg->title, title);
+
+  return pg;
+}
+void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
+                            cg_colour c) {
+  cg_slice s;
+
+  s.amount = amount;
+  s.label = malloc(strlen(label) + 1);
+  strcpy(s.label, label);
+  s.colour = c;
+
+  cg__dynamic_array_append(pg->slices, s);
+  pg->total += amount;
+  pg->slice_count++;
+}
+
+cg_image *cg_pie_graph_render(cg_pie_graph *pg) {
+  const int canvas_size = 512;
+  const int padding = 60;
+  const int title_y = 10;
+
+  cg_image *img = cg_new_image(canvas_size, canvas_size);
+
+  cg_image_draw_rect(img, 0, 0, canvas_size, canvas_size,
+                     (cg_colour){255, 255, 255});
+
+  cg_image_draw_circle(img, canvas_size / 2, canvas_size / 2,
+                       canvas_size / 2 - padding, (cg_colour){55, 189, 255});
+
+  int title_x = (canvas_size / 2) - (strlen(pg->title) * CGRAPH_FONT_SIZE * 2);
+  cg_image_write_text(img, pg->title, 4, title_x, title_y,
+                      (cg_colour){0, 0, 0});
+
+  float current_angle = 0.0f;
+  for (int i = 0; i < pg->slice_count; i++) {
+    cg_slice s = pg->slices->items[i];
+
+    float ratio = (float)s.amount / pg->total;
+    float slice_percentage = ratio * 100.0f;
+
+    cg_image_draw_circle_slice(img, canvas_size / 2, canvas_size / 2,
+                               canvas_size / 2 - padding, current_angle,
+                               slice_percentage, s.colour);
+    current_angle += (ratio * 360.0f);
+  }
+
+  return img;
+}
+
+void cg_pie_graph_free(cg_pie_graph *pg);
 #endif
 
 #endif

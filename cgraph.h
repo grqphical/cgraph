@@ -45,7 +45,7 @@
 
 #define CGRAPH_FONT_SIZE 8
 
-const char cg__font8x8_basic[128][8] = {
+char cg__font[128][8] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // U+0000 (nul)
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // U+0001
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // U+0002
@@ -330,7 +330,7 @@ inline void cg_image_draw_circle(cg_image *img, int x_center, int y_center,
 
   for (int y = -radius; y <= radius; y++) {
     for (int x = -radius; x <= radius; x++) {
-      if (x * x + y * y < radius * radius) {
+      if (x * x + y * y <= radius * radius) {
         cg_image_set_pixel(img, x_center + x, y_center + y, c);
       }
     }
@@ -354,7 +354,7 @@ inline void cg_image_draw_circle_slice(cg_image *img, int x_center,
 
       float dist_sq = dx * dx + dy * dy;
 
-      if (dist_sq < radius * radius) {
+      if (dist_sq <= radius * radius) {
         float angle = atan2(dy, dx);
         if (angle < 0)
           angle += 2.0 * PI;
@@ -388,7 +388,7 @@ inline void cg_image_write_text(cg_image *img, const char *text, int scale,
   int startY = (y_pos < 0) ? 0 : y_pos;
 
   for (int i = 0; i < strlen(text); i++) {
-    char *bitmap = cg__font8x8_basic[text[i]];
+    char *bitmap = cg__font[text[i]];
 
     for (int x = 0; x < 8; x++) {
       for (int y = 0; y < 8; y++) {
@@ -573,7 +573,6 @@ inline cg_image *cg_bar_graph_render(cg_bar_graph *bg) {
 
     cg_image_draw_rect(img, x, y, bar_width, h, bar.colour);
 
-    // render X-axis Label
     int label_x =
         x + (bar_width / 2) - (strlen(bar.label) * CGRAPH_FONT_SIZE / 2);
     cg_image_write_text(img, bar.label, 2, label_x, graph_bottom + label_offset,
@@ -582,10 +581,8 @@ inline cg_image *cg_bar_graph_render(cg_bar_graph *bg) {
 
   // draw the borders
 
-  // vertical Line
   cg_image_draw_rect(img, graph_left, graph_top, axis_thickness, graph_height,
                      (cg_colour){0, 0, 0});
-  // horizontal Line
   cg_image_draw_rect(img, graph_left, graph_bottom, graph_width, axis_thickness,
                      (cg_colour){0, 0, 0});
 
@@ -638,7 +635,7 @@ void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
 
 cg_image *cg_pie_graph_render(cg_pie_graph *pg) {
   const int canvas_size = 512;
-  const int padding = 60;
+  const int padding = 80;
   const int title_y = 10;
 
   cg_image *img = cg_new_image(canvas_size, canvas_size);
@@ -646,14 +643,17 @@ cg_image *cg_pie_graph_render(cg_pie_graph *pg) {
   cg_image_draw_rect(img, 0, 0, canvas_size, canvas_size,
                      (cg_colour){255, 255, 255});
 
-  cg_image_draw_circle(img, canvas_size / 2, canvas_size / 2,
-                       canvas_size / 2 - padding, (cg_colour){55, 189, 255});
-
   int title_x = (canvas_size / 2) - (strlen(pg->title) * CGRAPH_FONT_SIZE * 2);
   cg_image_write_text(img, pg->title, 4, title_x, title_y,
                       (cg_colour){0, 0, 0});
 
   float current_angle = 0.0f;
+
+  int label_start_y = canvas_size - 40;
+  int label_start_x = padding / 2;
+  const int label_gap_x = 15;
+  const int label_rect_size = 24;
+
   for (int i = 0; i < pg->slice_count; i++) {
     cg_slice s = pg->slices->items[i];
 
@@ -664,6 +664,16 @@ cg_image *cg_pie_graph_render(cg_pie_graph *pg) {
                                canvas_size / 2 - padding, current_angle,
                                slice_percentage, s.colour);
     current_angle += (ratio * 360.0f);
+
+    int label_offset_x = i * (label_gap_x + label_rect_size +
+                              strlen(s.label) * CGRAPH_FONT_SIZE * 2);
+
+    cg_image_draw_rect(img, label_start_x + label_offset_x, label_start_y,
+                       label_rect_size, label_rect_size, s.colour);
+    cg_image_write_text(img, s.label, 2,
+                        label_start_x + label_rect_size + CGRAPH_FONT_SIZE / 2 +
+                            label_offset_x,
+                        label_start_y + 4, (cg_colour){0, 0, 0});
   }
 
   return img;

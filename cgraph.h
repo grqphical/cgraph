@@ -39,7 +39,8 @@
 // ============================================================
 //
 // The font used by cgraph is an 8x8 simple font sourced from:
-// <https://github.com/dhepper/font8x8/>
+// <https://github.com/dhepper/font8x8/>\
+
 #define CGRAPH_FONT_SIZE 8
 
 const char cg__font8x8_basic[128][8] = {
@@ -176,6 +177,7 @@ const char cg__font8x8_basic[128][8] = {
 // ============================================================
 // cg_image Output
 // ============================================================
+
 typedef struct {
   int r, g, b;
 } cg_colour;
@@ -416,9 +418,9 @@ static float cg__nice_num(float localRange, bool round) {
 
 inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
   const int canvas_size = 512;
-  const int padding = 60; // Margin around the whole graph
+  const int padding = 60; // margin around the whole graph
   const int title_y = 20;
-  const int label_offset = 15; // Space for X-axis labels below the line
+  const int label_offset = 15; // space for X-axis labels below the line
   const int axis_thickness = 2;
 
   // calculate the interval used for the "ticks" on the Y-axis
@@ -437,7 +439,7 @@ inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
   int graph_left = padding;
   int graph_right = canvas_size - padding;
   int graph_bottom = canvas_size - padding;
-  int graph_top = padding + 40; // Extra room for the title
+  int graph_top = padding + 40; // extra room for the title
 
   int graph_width = graph_right - graph_left;
   int graph_height = graph_bottom - graph_top;
@@ -452,7 +454,7 @@ inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
   cg_image_write_text(img, bg->title, 4, title_x, title_y,
                       (cg_colour){0, 0, 0});
 
-  // "tick" and Y-Axis Label rendering
+  // "tick" and Y-axis label rendering
   for (int i = 0; i < num_ticks; i++) {
     double tick_value = i * tick_interval;
 
@@ -494,6 +496,7 @@ inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
   }
 
   // draw the borders
+
   // vertical Line
   cg_image_draw_rect(img, graph_left, graph_top, axis_thickness, graph_height,
                      (cg_colour){0, 0, 0});

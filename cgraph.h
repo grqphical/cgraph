@@ -29,6 +29,7 @@
 #define CGRAPH_H
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -386,34 +387,118 @@ inline void cg_bargraph_add_bar(cg_bargraph *bg, const char *label, int amount,
   bg->bar_count++;
 }
 
-inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
-  const int default_size = 512;
-  const int default_title_scale = 4;
-  const int default_title_y_pos = 10;
+static float cg__nice_num(float localRange, bool round) {
+  float exponent = floor(log10(localRange));
+  float fraction = localRange / pow(10, exponent);
+  float niceFraction;
 
-  cg_image *img = cg_new_image(default_size, default_size);
-  cg_image_draw_rect(img, 0, 0, default_size, default_size,
+  if (round) {
+    if (fraction < 1.5)
+      niceFraction = 1;
+    else if (fraction < 3)
+      niceFraction = 2;
+    else if (fraction < 7)
+      niceFraction = 5;
+    else
+      niceFraction = 10;
+  } else {
+    if (fraction <= 1)
+      niceFraction = 1;
+    else if (fraction <= 2)
+      niceFraction = 2;
+    else if (fraction <= 5)
+      niceFraction = 5;
+    else
+      niceFraction = 10;
+  }
+  return niceFraction * pow(10, exponent);
+}
+
+inline cg_image *cg_bargraph_render(cg_bargraph *bg) {
+  const int canvas_size = 512;
+  const int padding = 60; // Margin around the whole graph
+  const int title_y = 20;
+  const int label_offset = 15; // Space for X-axis labels below the line
+  const int axis_thickness = 2;
+
+  // calculate the interval used for the "ticks" on the Y-axis
+  double max_val = 0;
+  for (int i = 0; i < bg->bar_count; i++) {
+    if (bg->bars->items[i].amount > max_val)
+      max_val = bg->bars->items[i].amount;
+  }
+
+  const int num_ticks = 6;
+  double range = cg__nice_num(max_val, false);
+  double tick_interval = cg__nice_num(range / (num_ticks - 1), true);
+  double axis_max = ceil(max_val / tick_interval) * tick_interval;
+
+  // define the actual graph's drawing area
+  int graph_left = padding;
+  int graph_right = canvas_size - padding;
+  int graph_bottom = canvas_size - padding;
+  int graph_top = padding + 40; // Extra room for the title
+
+  int graph_width = graph_right - graph_left;
+  int graph_height = graph_bottom - graph_top;
+
+  double scale = (double)graph_height / axis_max;
+  cg_image *img = cg_new_image(canvas_size, canvas_size);
+  cg_image_draw_rect(img, 0, 0, canvas_size, canvas_size,
                      (cg_colour){255, 255, 255});
 
-  // render title
-  int title_len = strlen(bg->title);
-  int title_width = title_len * CGRAPH_FONT_SIZE * default_title_scale;
-  int title_position_x = default_size / 2 - title_width / 2;
+  // Title Rendering
+  int title_x = (canvas_size / 2) - (strlen(bg->title) * CGRAPH_FONT_SIZE * 2);
+  cg_image_write_text(img, bg->title, 4, title_x, title_y,
+                      (cg_colour){0, 0, 0});
 
-  cg_image_write_text(img, bg->title, default_title_scale, title_position_x,
-                      default_title_y_pos, (cg_colour){0, 0, 0});
+  // "tick" and Y-Axis Label rendering
+  for (int i = 0; i < num_ticks; i++) {
+    double tick_value = i * tick_interval;
 
-  // render border lines
-  const int graph_padding = 40;
-  int graph_vertical_offset = 10 + CGRAPH_FONT_SIZE * default_title_scale;
+    // start at bottom, work way up to top
+    int y_pos = graph_bottom - (int)(tick_value * scale);
 
-  cg_image_draw_rect(
-      img, graph_padding, graph_vertical_offset, default_title_scale,
-      default_size - graph_vertical_offset * 2, (cg_colour){0, 0, 0});
+    if (y_pos < graph_top)
+      continue;
 
-  cg_image_draw_rect(img, graph_padding,
-                     default_size - graph_vertical_offset - default_title_scale,
-                     default_size - graph_padding * 2, default_title_scale,
+    cg_image_draw_rect(img, graph_left, y_pos, graph_width, 1,
+                       (cg_colour){200, 200, 200});
+
+    char buf[32];
+    sprintf(buf, "%.0f", tick_value);
+    int text_x = graph_left - (strlen(buf) * CGRAPH_FONT_SIZE) - 5;
+    cg_image_write_text(img, buf, 1, text_x, y_pos - (CGRAPH_FONT_SIZE / 2),
+                        (cg_colour){0, 0, 0});
+  }
+
+  // render the actual bars
+  int bar_padding = 15;
+  int total_bar_area_width = graph_width / bg->bar_count;
+  int bar_width = total_bar_area_width - bar_padding;
+
+  for (int i = 0; i < bg->bar_count; i++) {
+    cg_bar bar = bg->bars->items[i];
+
+    int h = (int)(bar.amount * scale);
+    int x = graph_left + (i * total_bar_area_width) + (bar_padding / 2);
+    int y = graph_bottom - h; // Start at bottom line and grow UP
+
+    cg_image_draw_rect(img, x, y, bar_width, h, bar.colour);
+
+    // render X-axis Label
+    int label_x =
+        x + (bar_width / 2) - (strlen(bar.label) * CGRAPH_FONT_SIZE / 2);
+    cg_image_write_text(img, bar.label, 2, label_x, graph_bottom + label_offset,
+                        (cg_colour){0, 0, 0});
+  }
+
+  // draw the borders
+  // vertical Line
+  cg_image_draw_rect(img, graph_left, graph_top, axis_thickness, graph_height,
+                     (cg_colour){0, 0, 0});
+  // horizontal Line
+  cg_image_draw_rect(img, graph_left, graph_bottom, graph_width, axis_thickness,
                      (cg_colour){0, 0, 0});
 
   return img;

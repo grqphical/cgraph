@@ -35,13 +35,14 @@
 #include <string.h>
 
 #define PI 3.14159265358979323846
+#define CGRAPH_MAX_STRING_SIZE 128
 
 // ============================================================
 // Font Rendering
 // ============================================================
 //
 // The font used by cgraph is an 8x8 simple font sourced from:
-// <https://github.com/dhepper/font8x8/>\
+// <https://github.com/dhepper/font8x8/>
 
 #define CGRAPH_FONT_SIZE 8
 
@@ -217,7 +218,7 @@ void cg_image_free(cg_image img);
 typedef struct {
   int amount;
   cg_colour colour;
-  char *label;
+  char label[CGRAPH_MAX_STRING_SIZE];
 } cg_bar;
 
 // Dynamic Array to store bars inside of the bar graph
@@ -243,7 +244,7 @@ static cg__bar_dynamic_array cg__new_bar_dynamic_array();
 typedef struct {
   cg__bar_dynamic_array bars;
   int bar_count;
-  char *title;
+  char title[CGRAPH_MAX_STRING_SIZE];
 } cg_bar_graph;
 
 cg_bar_graph cg_new_bar_graph(const char *title);
@@ -254,7 +255,7 @@ void cg_bar_graph_free(cg_bar_graph bg);
 
 typedef struct {
   int amount;
-  char *label;
+  char label[CGRAPH_MAX_STRING_SIZE];
   cg_colour colour;
 } cg_slice;
 
@@ -270,7 +271,7 @@ typedef struct {
   cg__slice_dynamic_array slices;
   int slice_count;
   int total;
-  char *title;
+  char title[CGRAPH_MAX_STRING_SIZE];
 } cg_pie_graph;
 
 cg_pie_graph cg_new_pie_graph(const char *title);
@@ -385,10 +386,9 @@ inline void cg_image_write_text(cg_image *img, const char *text, int scale,
     endY = img->height;
 
   int startX = (x_pos < 0) ? 0 : x_pos;
-  int startY = (y_pos < 0) ? 0 : y_pos;
 
   for (int i = 0; i < strlen(text); i++) {
-    char *bitmap = cg__font[text[i]];
+    char *bitmap = cg__font[(int)text[i]];
 
     for (int x = 0; x < 8; x++) {
       for (int y = 0; y < 8; y++) {
@@ -439,7 +439,6 @@ inline void cg_image_free(cg_image img) { free(img.data); }
 
 cg_bar_graph cg_new_bar_graph(const char *title) {
   cg_bar_graph bg;
-  bg.title = malloc(strlen(title) + 1);
   strcpy(bg.title, title);
   bg.bar_count = 0;
   bg.bars = cg__new_bar_dynamic_array();
@@ -463,7 +462,6 @@ inline void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label,
 
   bar.amount = amount;
   bar.colour = c;
-  bar.label = malloc(strlen(label) + 1);
   strcpy(bar.label, label);
 
   cg__dynamic_array_append(bg->bars, bar);
@@ -585,13 +583,7 @@ inline cg_image cg_bar_graph_render(cg_bar_graph *bg) {
   return img;
 }
 
-inline void cg_bar_graph_free(cg_bar_graph bg) {
-  for (int i = 0; i < bg.bars.count; i++) {
-    free(bg.bars.items[i].label);
-  }
-  free(bg.bars.items);
-  free(bg.title);
-}
+inline void cg_bar_graph_free(cg_bar_graph bg) { free(bg.bars.items); }
 
 inline static cg__slice_dynamic_array cg__new_slice_dynamic_array() {
   cg__slice_dynamic_array da;
@@ -607,7 +599,6 @@ inline cg_pie_graph cg_new_pie_graph(const char *title) {
   pg.slice_count = 0;
   pg.slices = cg__new_slice_dynamic_array();
   pg.total = 0;
-  pg.title = malloc(strlen(title) + 1);
   strcpy(pg.title, title);
 
   return pg;
@@ -617,7 +608,6 @@ void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
   cg_slice s;
 
   s.amount = amount;
-  s.label = malloc(strlen(label) + 1);
   strcpy(s.label, label);
   s.colour = c;
 
@@ -672,10 +662,7 @@ cg_image cg_pie_graph_render(cg_pie_graph *pg) {
   return img;
 }
 
-void cg_pie_graph_free(cg_pie_graph pg) {
-  free(pg.title);
-  free(pg.slices.items);
-}
+void cg_pie_graph_free(cg_pie_graph pg) { free(pg.slices.items); }
 #endif
 
 #endif

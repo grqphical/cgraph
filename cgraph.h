@@ -35,6 +35,10 @@
 #include <string.h>
 
 #define PI 3.14159265358979323846
+
+// this is so we don't have to use malloc so much
+// labels on a graph shouldn't be larger than 128 characters
+// might add a preprocessor flag to use malloc instead
 #define CGRAPH_MAX_STRING_SIZE 128
 
 // ============================================================
@@ -205,8 +209,8 @@ void cg_image_draw_circle(cg_image *img, int x_center, int y_center, int radius,
 void cg_image_draw_circle_slice(cg_image *img, int x_center, int y_center,
                                 int radius, int start_angle, float percentage,
                                 cg_colour c);
-void cg_image_write_text(cg_image *img, const char *text, int scale, int x_pos,
-                         int y_pos, cg_colour c);
+void cg_image_draw_text(cg_image *img, const char *text, int scale, int x_pos,
+                        int y_pos, cg_colour c);
 void cg_image_export(cg_image img, const char *output_file,
                      cg_output_format format);
 void cg_image_free(cg_image img);
@@ -374,8 +378,8 @@ inline void cg_image_draw_circle_slice(cg_image *img, int x_center,
   }
 }
 
-inline void cg_image_write_text(cg_image *img, const char *text, int scale,
-                                int x_pos, int y_pos, cg_colour c) {
+inline void cg_image_draw_text(cg_image *img, const char *text, int scale,
+                               int x_pos, int y_pos, cg_colour c) {
   int width = strlen(text) * CGRAPH_FONT_SIZE;
   int endX = x_pos + width;
   int endY = y_pos + CGRAPH_FONT_SIZE;
@@ -530,8 +534,8 @@ inline cg_image cg_bar_graph_render(cg_bar_graph *bg) {
 
   // Title Rendering
   int title_x = (canvas_size / 2) - (strlen(bg->title) * CGRAPH_FONT_SIZE * 2);
-  cg_image_write_text(&img, bg->title, 4, title_x, title_y,
-                      (cg_colour){0, 0, 0});
+  cg_image_draw_text(&img, bg->title, 4, title_x, title_y,
+                     (cg_colour){0, 0, 0});
 
   // "tick" and Y-axis label rendering
   for (int i = 0; i < num_ticks; i++) {
@@ -549,8 +553,8 @@ inline cg_image cg_bar_graph_render(cg_bar_graph *bg) {
     char buf[32];
     sprintf(buf, "%.0f", tick_value);
     int text_x = graph_left - (strlen(buf) * CGRAPH_FONT_SIZE) - 5;
-    cg_image_write_text(&img, buf, 1, text_x, y_pos - (CGRAPH_FONT_SIZE / 2),
-                        (cg_colour){0, 0, 0});
+    cg_image_draw_text(&img, buf, 1, text_x, y_pos - (CGRAPH_FONT_SIZE / 2),
+                       (cg_colour){0, 0, 0});
   }
 
   // render the actual bars
@@ -569,8 +573,8 @@ inline cg_image cg_bar_graph_render(cg_bar_graph *bg) {
 
     int label_x =
         x + (bar_width / 2) - (strlen(bar.label) * CGRAPH_FONT_SIZE / 2);
-    cg_image_write_text(&img, bar.label, 2, label_x,
-                        graph_bottom + label_offset, (cg_colour){0, 0, 0});
+    cg_image_draw_text(&img, bar.label, 2, label_x, graph_bottom + label_offset,
+                       (cg_colour){0, 0, 0});
   }
 
   // draw the borders
@@ -627,8 +631,8 @@ cg_image cg_pie_graph_render(cg_pie_graph *pg) {
                      (cg_colour){255, 255, 255});
 
   int title_x = (canvas_size / 2) - (strlen(pg->title) * CGRAPH_FONT_SIZE * 2);
-  cg_image_write_text(&img, pg->title, 4, title_x, title_y,
-                      (cg_colour){0, 0, 0});
+  cg_image_draw_text(&img, pg->title, 4, title_x, title_y,
+                     (cg_colour){0, 0, 0});
 
   float current_angle = 0.0f;
 
@@ -653,10 +657,10 @@ cg_image cg_pie_graph_render(cg_pie_graph *pg) {
 
     cg_image_draw_rect(&img, label_start_x + label_offset_x, label_start_y,
                        label_rect_size, label_rect_size, s.colour);
-    cg_image_write_text(&img, s.label, 2,
-                        label_start_x + label_rect_size + CGRAPH_FONT_SIZE / 2 +
-                            label_offset_x,
-                        label_start_y + 4, (cg_colour){0, 0, 0});
+    cg_image_draw_text(&img, s.label, 2,
+                       label_start_x + label_rect_size + CGRAPH_FONT_SIZE / 2 +
+                           label_offset_x,
+                       label_start_y + 4, (cg_colour){0, 0, 0});
   }
 
   return img;

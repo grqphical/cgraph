@@ -195,7 +195,7 @@ typedef struct {
   int height;
 } cg_image;
 
-cg_image *cg_new_image(int width, int height);
+cg_image cg_new_image(int width, int height);
 void cg_image_set_pixel(cg_image *img, int x, int y, cg_colour c);
 void cg_image_draw_rect(cg_image *img, int x, int y, int width, int height,
                         cg_colour c);
@@ -206,9 +206,9 @@ void cg_image_draw_circle_slice(cg_image *img, int x_center, int y_center,
                                 cg_colour c);
 void cg_image_write_text(cg_image *img, const char *text, int scale, int x_pos,
                          int y_pos, cg_colour c);
-void cg_image_export(cg_image *img, const char *output_file,
+void cg_image_export(cg_image img, const char *output_file,
                      cg_output_format format);
-void cg_image_free(cg_image *img);
+void cg_image_free(cg_image img);
 
 // ============================================================
 // Graphs
@@ -229,28 +229,28 @@ typedef struct {
   size_t capacity;
 } cg__bar_dynamic_array;
 
-static cg__bar_dynamic_array *cg__new_bar_dynamic_array();
+static cg__bar_dynamic_array cg__new_bar_dynamic_array();
 
 #define cg__dynamic_array_append(da, element)                                  \
   do {                                                                         \
-    if (da->count >= da->capacity) {                                           \
-      da->capacity *= 2;                                                       \
-      da->items = realloc(da->items, da->capacity * sizeof(*da->items));       \
+    if (da.count >= da.capacity) {                                             \
+      da.capacity *= 2;                                                        \
+      da.items = realloc(da.items, da.capacity * sizeof(*da.items));           \
     }                                                                          \
-    da->items[da->count++] = element;                                          \
+    da.items[da.count++] = element;                                            \
   } while (0);
 
 typedef struct {
-  cg__bar_dynamic_array *bars;
+  cg__bar_dynamic_array bars;
   int bar_count;
   char *title;
 } cg_bar_graph;
 
-cg_bar_graph *cg_new_bar_graph(const char *title);
+cg_bar_graph cg_new_bar_graph(const char *title);
 void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label, int amount,
                           cg_colour c);
-cg_image *cg_bar_graph_render(cg_bar_graph *bg);
-void cg_bar_graph_free(cg_bar_graph *bg);
+cg_image cg_bar_graph_render(cg_bar_graph *bg);
+void cg_bar_graph_free(cg_bar_graph bg);
 
 typedef struct {
   int amount;
@@ -264,31 +264,31 @@ typedef struct {
   size_t capacity;
 } cg__slice_dynamic_array;
 
-static cg__slice_dynamic_array *cg__new_slice_dynamic_array();
+static cg__slice_dynamic_array cg__new_slice_dynamic_array();
 
 typedef struct {
-  cg__slice_dynamic_array *slices;
+  cg__slice_dynamic_array slices;
   int slice_count;
   int total;
   char *title;
 } cg_pie_graph;
 
-cg_pie_graph *cg_new_pie_graph(const char *title);
+cg_pie_graph cg_new_pie_graph(const char *title);
 void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
                             cg_colour c);
-cg_image *cg_pie_graph_render(cg_pie_graph *pg);
-void cg_pie_graph_free(cg_pie_graph *pg);
+cg_image cg_pie_graph_render(cg_pie_graph *pg);
+void cg_pie_graph_free(cg_pie_graph pg);
 
 #ifdef CGRAPH_IMPLEMENTATION
 
 // ============================================================
 // cg_image Output
 // ============================================================
-inline cg_image *cg_new_image(int width, int height) {
-  cg_image *img = (cg_image *)malloc(sizeof(cg_image));
-  img->width = width;
-  img->height = height;
-  img->data = (cg_colour *)malloc(sizeof(cg_colour) * width * height);
+inline cg_image cg_new_image(int width, int height) {
+  cg_image img;
+  img.width = width;
+  img.height = height;
+  img.data = (cg_colour *)malloc(sizeof(cg_colour) * width * height);
 
   return img;
 }
@@ -404,22 +404,22 @@ inline void cg_image_write_text(cg_image *img, const char *text, int scale,
   }
 }
 
-static void cg__image_export_ppm(cg_image *img, const char *output_file) {
+static void cg__image_export_ppm(cg_image img, const char *output_file) {
   FILE *fptr = fopen(output_file, "wb");
   if (!fptr)
     return;
 
-  fprintf(fptr, "P6\n%d %d\n255\n", img->width, img->height);
-  for (int i = 0; i < img->width * img->height; i++) {
-    fputc(img->data[i].r, fptr);
-    fputc(img->data[i].g, fptr);
-    fputc(img->data[i].b, fptr);
+  fprintf(fptr, "P6\n%d %d\n255\n", img.width, img.height);
+  for (int i = 0; i < img.width * img.height; i++) {
+    fputc(img.data[i].r, fptr);
+    fputc(img.data[i].g, fptr);
+    fputc(img.data[i].b, fptr);
   }
 
   fclose(fptr);
 }
 
-inline void cg_image_export(cg_image *img, const char *output_file,
+inline void cg_image_export(cg_image img, const char *output_file,
                             cg_output_format format) {
   switch (format) {
   case PPM:
@@ -431,31 +431,27 @@ inline void cg_image_export(cg_image *img, const char *output_file,
   }
 }
 
-void cg_image_free(cg_image *img) {
-  free(img->data);
-  free(img);
-}
+inline void cg_image_free(cg_image img) { free(img.data); }
 
 // ============================================================
 // Graphs
 // ============================================================
 
-cg_bar_graph *cg_new_bar_graph(const char *title) {
-  cg_bar_graph *bg = (cg_bar_graph *)malloc(sizeof(cg_bar_graph));
-  bg->title = malloc(strlen(title) + 1);
-  strcpy(bg->title, title);
-  bg->bar_count = 0;
-  bg->bars = cg__new_bar_dynamic_array();
+cg_bar_graph cg_new_bar_graph(const char *title) {
+  cg_bar_graph bg;
+  bg.title = malloc(strlen(title) + 1);
+  strcpy(bg.title, title);
+  bg.bar_count = 0;
+  bg.bars = cg__new_bar_dynamic_array();
 
   return bg;
 }
 
-static inline cg__bar_dynamic_array *cg__new_bar_dynamic_array() {
-  cg__bar_dynamic_array *da =
-      (cg__bar_dynamic_array *)malloc(sizeof(cg__bar_dynamic_array));
-  da->capacity = cg__INITIAL_DA_CAPACITY;
-  da->count = 0;
-  da->items = (cg_bar *)malloc(da->capacity * sizeof(cg_bar));
+static inline cg__bar_dynamic_array cg__new_bar_dynamic_array() {
+  cg__bar_dynamic_array da;
+  da.capacity = cg__INITIAL_DA_CAPACITY;
+  da.count = 0;
+  da.items = (cg_bar *)malloc(da.capacity * sizeof(cg_bar));
 
   return da;
 }
@@ -501,7 +497,7 @@ static float cg__nice_num(float localRange, bool round) {
   return niceFraction * pow(10, exponent);
 }
 
-inline cg_image *cg_bar_graph_render(cg_bar_graph *bg) {
+inline cg_image cg_bar_graph_render(cg_bar_graph *bg) {
   const int canvas_size = 512;
   const int padding = 60; // margin around the whole graph
   const int title_y = 20;
@@ -511,8 +507,8 @@ inline cg_image *cg_bar_graph_render(cg_bar_graph *bg) {
   // calculate the interval used for the "ticks" on the Y-axis
   double max_val = 0;
   for (int i = 0; i < bg->bar_count; i++) {
-    if (bg->bars->items[i].amount > max_val)
-      max_val = bg->bars->items[i].amount;
+    if (bg->bars.items[i].amount > max_val)
+      max_val = bg->bars.items[i].amount;
   }
 
   const int num_ticks = 6;
@@ -530,13 +526,13 @@ inline cg_image *cg_bar_graph_render(cg_bar_graph *bg) {
   int graph_height = graph_bottom - graph_top;
 
   double scale = (double)graph_height / axis_max;
-  cg_image *img = cg_new_image(canvas_size, canvas_size);
-  cg_image_draw_rect(img, 0, 0, canvas_size, canvas_size,
+  cg_image img = cg_new_image(canvas_size, canvas_size);
+  cg_image_draw_rect(&img, 0, 0, canvas_size, canvas_size,
                      (cg_colour){255, 255, 255});
 
   // Title Rendering
   int title_x = (canvas_size / 2) - (strlen(bg->title) * CGRAPH_FONT_SIZE * 2);
-  cg_image_write_text(img, bg->title, 4, title_x, title_y,
+  cg_image_write_text(&img, bg->title, 4, title_x, title_y,
                       (cg_colour){0, 0, 0});
 
   // "tick" and Y-axis label rendering
@@ -549,13 +545,13 @@ inline cg_image *cg_bar_graph_render(cg_bar_graph *bg) {
     if (y_pos < graph_top)
       continue;
 
-    cg_image_draw_rect(img, graph_left, y_pos, graph_width, 1,
+    cg_image_draw_rect(&img, graph_left, y_pos, graph_width, 1,
                        (cg_colour){200, 200, 200});
 
     char buf[32];
     sprintf(buf, "%.0f", tick_value);
     int text_x = graph_left - (strlen(buf) * CGRAPH_FONT_SIZE) - 5;
-    cg_image_write_text(img, buf, 1, text_x, y_pos - (CGRAPH_FONT_SIZE / 2),
+    cg_image_write_text(&img, buf, 1, text_x, y_pos - (CGRAPH_FONT_SIZE / 2),
                         (cg_colour){0, 0, 0});
   }
 
@@ -565,57 +561,54 @@ inline cg_image *cg_bar_graph_render(cg_bar_graph *bg) {
   int bar_width = total_bar_area_width - bar_padding;
 
   for (int i = 0; i < bg->bar_count; i++) {
-    cg_bar bar = bg->bars->items[i];
+    cg_bar bar = bg->bars.items[i];
 
     int h = (int)(bar.amount * scale);
     int x = graph_left + (i * total_bar_area_width) + (bar_padding / 2);
     int y = graph_bottom - h; // Start at bottom line and grow UP
 
-    cg_image_draw_rect(img, x, y, bar_width, h, bar.colour);
+    cg_image_draw_rect(&img, x, y, bar_width, h, bar.colour);
 
     int label_x =
         x + (bar_width / 2) - (strlen(bar.label) * CGRAPH_FONT_SIZE / 2);
-    cg_image_write_text(img, bar.label, 2, label_x, graph_bottom + label_offset,
-                        (cg_colour){0, 0, 0});
+    cg_image_write_text(&img, bar.label, 2, label_x,
+                        graph_bottom + label_offset, (cg_colour){0, 0, 0});
   }
 
   // draw the borders
 
-  cg_image_draw_rect(img, graph_left, graph_top, axis_thickness, graph_height,
+  cg_image_draw_rect(&img, graph_left, graph_top, axis_thickness, graph_height,
                      (cg_colour){0, 0, 0});
-  cg_image_draw_rect(img, graph_left, graph_bottom, graph_width, axis_thickness,
-                     (cg_colour){0, 0, 0});
+  cg_image_draw_rect(&img, graph_left, graph_bottom, graph_width,
+                     axis_thickness, (cg_colour){0, 0, 0});
 
   return img;
 }
 
-inline void cg_bar_graph_free(cg_bar_graph *bg) {
-  for (int i = 0; i < bg->bars->count; i++) {
-    free(bg->bars->items[i].label);
+inline void cg_bar_graph_free(cg_bar_graph bg) {
+  for (int i = 0; i < bg.bars.count; i++) {
+    free(bg.bars.items[i].label);
   }
-  free(bg->bars->items);
-  free(bg->bars);
-  free(bg->title);
-  free(bg);
+  free(bg.bars.items);
+  free(bg.title);
 }
 
-inline static cg__slice_dynamic_array *cg__new_slice_dynamic_array() {
-  cg__slice_dynamic_array *da =
-      (cg__slice_dynamic_array *)malloc(sizeof(cg__slice_dynamic_array));
-  da->capacity = cg__INITIAL_DA_CAPACITY;
-  da->count = 0;
-  da->items = (cg_slice *)malloc(da->capacity * sizeof(cg_slice));
+inline static cg__slice_dynamic_array cg__new_slice_dynamic_array() {
+  cg__slice_dynamic_array da;
+  da.capacity = cg__INITIAL_DA_CAPACITY;
+  da.count = 0;
+  da.items = (cg_slice *)malloc(da.capacity * sizeof(cg_slice));
 
   return da;
 }
 
-inline cg_pie_graph *cg_new_pie_graph(const char *title) {
-  cg_pie_graph *pg = (cg_pie_graph *)malloc(sizeof(cg_pie_graph));
-  pg->slice_count = 0;
-  pg->slices = cg__new_slice_dynamic_array();
-  pg->total = 0;
-  pg->title = malloc(strlen(title) + 1);
-  strcpy(pg->title, title);
+inline cg_pie_graph cg_new_pie_graph(const char *title) {
+  cg_pie_graph pg;
+  pg.slice_count = 0;
+  pg.slices = cg__new_slice_dynamic_array();
+  pg.total = 0;
+  pg.title = malloc(strlen(title) + 1);
+  strcpy(pg.title, title);
 
   return pg;
 }
@@ -633,18 +626,18 @@ void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
   pg->slice_count++;
 }
 
-cg_image *cg_pie_graph_render(cg_pie_graph *pg) {
+cg_image cg_pie_graph_render(cg_pie_graph *pg) {
   const int canvas_size = 512;
   const int padding = 80;
   const int title_y = 10;
 
-  cg_image *img = cg_new_image(canvas_size, canvas_size);
+  cg_image img = cg_new_image(canvas_size, canvas_size);
 
-  cg_image_draw_rect(img, 0, 0, canvas_size, canvas_size,
+  cg_image_draw_rect(&img, 0, 0, canvas_size, canvas_size,
                      (cg_colour){255, 255, 255});
 
   int title_x = (canvas_size / 2) - (strlen(pg->title) * CGRAPH_FONT_SIZE * 2);
-  cg_image_write_text(img, pg->title, 4, title_x, title_y,
+  cg_image_write_text(&img, pg->title, 4, title_x, title_y,
                       (cg_colour){0, 0, 0});
 
   float current_angle = 0.0f;
@@ -655,12 +648,12 @@ cg_image *cg_pie_graph_render(cg_pie_graph *pg) {
   const int label_rect_size = 24;
 
   for (int i = 0; i < pg->slice_count; i++) {
-    cg_slice s = pg->slices->items[i];
+    cg_slice s = pg->slices.items[i];
 
     float ratio = (float)s.amount / pg->total;
     float slice_percentage = ratio * 100.0f;
 
-    cg_image_draw_circle_slice(img, canvas_size / 2, canvas_size / 2,
+    cg_image_draw_circle_slice(&img, canvas_size / 2, canvas_size / 2,
                                canvas_size / 2 - padding, current_angle,
                                slice_percentage, s.colour);
     current_angle += (ratio * 360.0f);
@@ -668,9 +661,9 @@ cg_image *cg_pie_graph_render(cg_pie_graph *pg) {
     int label_offset_x = i * (label_gap_x + label_rect_size +
                               strlen(s.label) * CGRAPH_FONT_SIZE * 2);
 
-    cg_image_draw_rect(img, label_start_x + label_offset_x, label_start_y,
+    cg_image_draw_rect(&img, label_start_x + label_offset_x, label_start_y,
                        label_rect_size, label_rect_size, s.colour);
-    cg_image_write_text(img, s.label, 2,
+    cg_image_write_text(&img, s.label, 2,
                         label_start_x + label_rect_size + CGRAPH_FONT_SIZE / 2 +
                             label_offset_x,
                         label_start_y + 4, (cg_colour){0, 0, 0});
@@ -679,7 +672,10 @@ cg_image *cg_pie_graph_render(cg_pie_graph *pg) {
   return img;
 }
 
-void cg_pie_graph_free(cg_pie_graph *pg);
+void cg_pie_graph_free(cg_pie_graph pg) {
+  free(pg.title);
+  free(pg.slices.items);
+}
 #endif
 
 #endif

@@ -237,7 +237,7 @@ void cg_image_free(cg_image img);
 
 // represents a singular bar in a bar graph
 typedef struct {
-  int amount;
+  double amount;
   cg_colour colour;
   char label[CGRAPH_MAX_STRING_SIZE];
 } cg_bar;
@@ -273,7 +273,7 @@ typedef struct {
 
 cg_bar_graph cg_new_bar_graph(const char *title);
 // adds a bar with the given label and amount to a bar graph
-void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label, int amount,
+void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label, double amount,
                           cg_colour c);
 // renders a bar graph to an image
 cg_image cg_bar_graph_render(cg_bar_graph *bg);
@@ -286,7 +286,7 @@ void cg_bar_graph_free(cg_bar_graph bg);
 
 // represents a slice within a pie graph
 typedef struct {
-  int amount;
+  double amount;
   char label[CGRAPH_MAX_STRING_SIZE];
   cg_colour colour;
 } cg_slice;
@@ -310,7 +310,7 @@ typedef struct {
 
 cg_pie_graph cg_new_pie_graph(const char *title);
 // adds a slice to the pie graph with the given label and amount
-void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
+void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, double amount,
                             cg_colour c);
 // renders the pie graph to an image
 // if donut is true, a background coloured circle will be drawn on top, only
@@ -495,7 +495,7 @@ static inline cg__bar_dynamic_array cg__new_bar_dynamic_array() {
 }
 
 inline void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label,
-                                 int amount, cg_colour c) {
+                                 double amount, cg_colour c) {
 
   cg_bar bar;
 
@@ -649,7 +649,7 @@ inline cg_pie_graph cg_new_pie_graph(const char *title) {
 
   return pg;
 }
-void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
+void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, double amount,
                             cg_colour c) {
   cg_slice s;
 

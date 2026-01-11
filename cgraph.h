@@ -245,6 +245,21 @@ typedef struct {
 // Dynamic Array to store bars inside of the bar graph
 #define cg__INITIAL_DA_CAPACITY 256
 
+#define dynamic_array(type)                                                    \
+  typedef struct {                                                             \
+    type *items;                                                               \
+    size_t count;                                                              \
+    size_t capacity;                                                           \
+  } cg__##type##_dynamic_array;                                                \
+  inline static cg__##type##_dynamic_array cg__new_##type##_dynamic_array() {  \
+    cg__##type##_dynamic_array da;                                             \
+    da.capacity = cg__INITIAL_DA_CAPACITY;                                     \
+    da.count = 0;                                                              \
+    da.items = (type *)malloc(da.capacity * sizeof(type));                     \
+                                                                               \
+    return da;                                                                 \
+  }
+
 // macro to append an element to a dynamic array
 #define cg__dynamic_array_append(da, element)                                  \
   do {                                                                         \
@@ -256,17 +271,11 @@ typedef struct {
   } while (0);
 
 // a dynamic array of bars, used to store the bar data in the bar graph
-typedef struct {
-  cg_bar *items;
-  size_t count;
-  size_t capacity;
-} cg__bar_dynamic_array;
-
-static cg__bar_dynamic_array cg__new_bar_dynamic_array();
+dynamic_array(cg_bar);
 
 // stores the data for a bar graph
 typedef struct {
-  cg__bar_dynamic_array bars;
+  cg__cg_bar_dynamic_array bars;
   int bar_count;
   char title[CGRAPH_MAX_STRING_SIZE];
 } cg_bar_graph;
@@ -292,17 +301,11 @@ typedef struct {
 } cg_slice;
 
 // again, we use a dynamic array to store the slices in the pie graph
-typedef struct {
-  cg_slice *items;
-  size_t count;
-  size_t capacity;
-} cg__slice_dynamic_array;
-
-static cg__slice_dynamic_array cg__new_slice_dynamic_array();
+dynamic_array(cg_slice);
 
 // stores all the data for a pie graph
 typedef struct {
-  cg__slice_dynamic_array slices;
+  cg__cg_slice_dynamic_array slices;
   int slice_count;
   int total;
   char title[CGRAPH_MAX_STRING_SIZE];
@@ -318,6 +321,36 @@ void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, double amount,
 cg_image cg_pie_graph_render(cg_pie_graph *pg, bool donut);
 // frees the pie graph
 void cg_pie_graph_free(cg_pie_graph pg);
+
+// ============================================================
+// cg_scatter_plot
+// ===========================================
+typedef struct {
+  double x;
+  double y;
+} cg_vector2;
+
+typedef struct {
+  cg_vector2 pos;
+  cg_colour colour;
+} cg_point;
+
+dynamic_array(cg_point);
+
+typedef struct {
+  cg__cg_point_dynamic_array points;
+  int count;
+  char title[CGRAPH_MAX_STRING_SIZE];
+  char x_axis_label[CGRAPH_MAX_STRING_SIZE];
+  char y_axis_label[CGRAPH_MAX_STRING_SIZE];
+} cg_scatter_plot;
+
+cg_scatter_plot cg_new_scatter_plot(const char *title, const char *x_axis_label,
+                                    const char *y_axis_label);
+void cg_scatter_plot_add_point(cg_scatter_plot *plot, cg_vector2 point,
+                               cg_colour colour);
+cg_image cg_scatter_plot_render(cg_scatter_plot *plot);
+void cg_scatter_plot_free(cg_scatter_plot plot);
 
 #ifdef CGRAPH_IMPLEMENTATION
 
@@ -480,18 +513,9 @@ cg_bar_graph cg_new_bar_graph(const char *title) {
   cg_bar_graph bg;
   strcpy(bg.title, title);
   bg.bar_count = 0;
-  bg.bars = cg__new_bar_dynamic_array();
+  bg.bars = cg__new_cg_bar_dynamic_array();
 
   return bg;
-}
-
-static inline cg__bar_dynamic_array cg__new_bar_dynamic_array() {
-  cg__bar_dynamic_array da;
-  da.capacity = cg__INITIAL_DA_CAPACITY;
-  da.count = 0;
-  da.items = (cg_bar *)malloc(da.capacity * sizeof(cg_bar));
-
-  return da;
 }
 
 inline void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label,
@@ -627,15 +651,6 @@ inline cg_image cg_bar_graph_render(cg_bar_graph *bg) {
 
 inline void cg_bar_graph_free(cg_bar_graph bg) { free(bg.bars.items); }
 
-inline static cg__slice_dynamic_array cg__new_slice_dynamic_array() {
-  cg__slice_dynamic_array da;
-  da.capacity = cg__INITIAL_DA_CAPACITY;
-  da.count = 0;
-  da.items = (cg_slice *)malloc(da.capacity * sizeof(cg_slice));
-
-  return da;
-}
-
 // ============================================================
 // cg_pie_graph
 // ============================================================
@@ -643,12 +658,13 @@ inline static cg__slice_dynamic_array cg__new_slice_dynamic_array() {
 inline cg_pie_graph cg_new_pie_graph(const char *title) {
   cg_pie_graph pg;
   pg.slice_count = 0;
-  pg.slices = cg__new_slice_dynamic_array();
+  pg.slices = cg__new_cg_slice_dynamic_array();
   pg.total = 0;
   strcpy(pg.title, title);
 
   return pg;
 }
+
 void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, double amount,
                             cg_colour c) {
   cg_slice s;
@@ -689,9 +705,13 @@ cg_image cg_pie_graph_render(cg_pie_graph *pg, bool donut) {
     float ratio = (float)s.amount / pg->total;
     float slice_percentage = ratio * 100.0f;
 
-    cg_image_draw_circle_slice(&img, canvas_size / 2, canvas_size / 2,
-                               canvas_size / 2 - padding, current_angle,
-                               slice_percentage, s.colour);
+    cg_image_draw_circle_slice(
+        &img, canvas_size / 2, canvas_size / 2,
+
+        // ============================================================
+        // cg_scatter_plot
+        // ===========================================
+        canvas_size / 2 - padding, current_angle, slice_percentage, s.colour);
     current_angle += (ratio * 360.0f);
 
     int label_offset_x = i * (label_gap_x + label_rect_size +
@@ -715,6 +735,86 @@ cg_image cg_pie_graph_render(cg_pie_graph *pg, bool donut) {
 }
 
 void cg_pie_graph_free(cg_pie_graph pg) { free(pg.slices.items); }
+
+// ============================================================
+// cg_scatter_plot
+// ============================================================
+
+inline cg_scatter_plot cg_new_scatter_plot(const char *title,
+                                           const char *x_axis_label,
+                                           const char *y_axis_label) {
+  cg_scatter_plot plot;
+  plot.count = 0;
+  plot.points = cg__new_cg_point_dynamic_array();
+  strcpy(plot.title, title);
+  strcpy(plot.x_axis_label, x_axis_label);
+  strcpy(plot.y_axis_label, y_axis_label);
+
+  return plot;
+}
+
+inline void cg_scatter_plot_add_point(cg_scatter_plot *plot, cg_vector2 point,
+                                      cg_colour colour) {
+  cg_point p;
+  p.pos = point;
+  p.colour = colour;
+
+  cg__dynamic_array_append(plot->points, p);
+}
+
+inline cg_image cg_scatter_plot_render(cg_scatter_plot *plot) {
+  const int canvas_size = 512;
+  // const int padding = 60; // margin around the whole graph
+  const int title_y = 20;
+  // const int label_offset = 15; // space for X-axis labels below the line
+  // const int axis_thickness = 2;
+
+  cg_image img = cg_new_image(canvas_size, canvas_size);
+  cg_image_draw_rect(&img, 0, 0, canvas_size, canvas_size,
+                     (cg_colour){255, 255, 255});
+
+  // calculate the interval used for the "ticks" on the Y and X axis
+  double max_val_x = 0;
+  double max_val_y = 0;
+  for (int i = 0; i < plot->count; i++) {
+    if (plot->points.items[i].pos.x > max_val_x)
+      max_val_x = plot->points.items[i].pos.x;
+    if (plot->points.items[i].pos.y > max_val_y)
+      max_val_y = plot->points.items[i].pos.y;
+  }
+
+  // const int num_ticks = 6;
+  //  double range_x = cg__nice_num(max_val_x, false);
+  //  double tick_interval_x = cg__nice_num(range_x / (num_ticks - 1), true);
+  //   double axis_max_x = ceil(max_val_x / tick_interval_x) * tick_interval_x;
+
+  // double range_y = cg__nice_num(max_val_y, false);
+  // double tick_interval_y = cg__nice_num(range_y / (num_ticks - 1), true);
+  //  double axis_max_y = ceil(max_val_y / tick_interval_y) * tick_interval_x;
+
+  // const int graph_top = padding + 2 * title_y;
+  //  const int graph_left = padding;
+  //  const int graph_right = canvas_size - padding;
+  // const int graph_bottom = canvas_size - padding;
+
+  // int graph_width = graph_right - graph_left;
+  // int graph_height = graph_bottom - graph_top;
+
+  // double scale = (double)graph_height / axis_max_y;
+
+  // Title Rendering
+  int title_x =
+      (canvas_size / 2) - (strlen(plot->title) * CGRAPH_FONT_SIZE * 2);
+  cg_image_draw_text(&img, plot->title, 4, title_x, title_y,
+                     (cg_colour){0, 0, 0});
+
+  return img;
+}
+
+inline void cg_scatter_plot_free(cg_scatter_plot plot) {
+  free(plot.points.items);
+}
+
 #endif
 
 #endif

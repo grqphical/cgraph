@@ -1,6 +1,8 @@
 // ================================================================
 //  cgraph - A minimal, single header graphing library written in C
 //
+//  Project Homepage: <https://github.com/grqphical/cgraph>
+//
 //  Made by Nathan Jacobson <https://nathanjacobson.ca>
 //
 //  LICENSE:
@@ -30,21 +32,18 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define PI 3.14159265358979323846
 
-// this is so we don't have to use malloc so much
-// labels on a graph shouldn't be larger than 128 characters
-// might add a preprocessor flag to use malloc instead
+// This is so we don't have to use malloc so much.
+// Labels on a graph shouldn't be larger than 128 characters
+// TODO: possible add a preprocessor flag to use malloc instead
 #define CGRAPH_MAX_STRING_SIZE 128
 
-// ============================================================
-// Font Rendering
-// ============================================================
-//
 // The font used by cgraph is an 8x8 simple font sourced from:
 // <https://github.com/dhepper/font8x8/>
 
@@ -182,43 +181,61 @@ char cg__font[128][8] = {
 };
 
 // ============================================================
-// cg_image Output
+// cg_image
 // ============================================================
 
+// represents an RGB colour
 typedef struct {
-  int r, g, b;
+  uint8_t r, g, b;
 } cg_colour;
 
 // for any Americans using this library
 #define cg_color cg_colour
 
+// the available output formats for cgraph
 typedef enum output_format { PPM } cg_output_format;
 
+// stores an image in memory
 typedef struct {
   cg_colour *data;
   int width;
   int height;
 } cg_image;
 
+// creates a new iamge with the given width and height
 cg_image cg_new_image(int width, int height);
+
+// sets a pixel to a certain colour in a given image
 void cg_image_set_pixel(cg_image *img, int x, int y, cg_colour c);
+// draws a rectangle at x,y with the given width, height and colour on the
+// provided image
 void cg_image_draw_rect(cg_image *img, int x, int y, int width, int height,
                         cg_colour c);
+// draws a circle at x,y with the given radius and colour on the provided image
 void cg_image_draw_circle(cg_image *img, int x_center, int y_center, int radius,
                           cg_colour c);
+// draws a slice of a circle
+//
+// the origin of the circle is at x,y
+// the start angle is which angle on the unit circle the slice should be drawn
+// from, the percentage is how much of the circle should be filled
 void cg_image_draw_circle_slice(cg_image *img, int x_center, int y_center,
                                 int radius, int start_angle, float percentage,
                                 cg_colour c);
+// draws text on the given image using the included bitmap font
 void cg_image_draw_text(cg_image *img, const char *text, int scale, int x_pos,
                         int y_pos, cg_colour c);
+// exports an image to the provided file in the provided format
 void cg_image_export(cg_image img, const char *output_file,
                      cg_output_format format);
+// frees an image
 void cg_image_free(cg_image img);
 
 // ============================================================
-// Graphs
+// cg_bar_graph
 // ============================================================
 
+// represents a singular bar in a bar graph
 typedef struct {
   int amount;
   cg_colour colour;
@@ -228,14 +245,7 @@ typedef struct {
 // Dynamic Array to store bars inside of the bar graph
 #define cg__INITIAL_DA_CAPACITY 256
 
-typedef struct {
-  cg_bar *items;
-  size_t count;
-  size_t capacity;
-} cg__bar_dynamic_array;
-
-static cg__bar_dynamic_array cg__new_bar_dynamic_array();
-
+// macro to append an element to a dynamic array
 #define cg__dynamic_array_append(da, element)                                  \
   do {                                                                         \
     if (da.count >= da.capacity) {                                             \
@@ -245,6 +255,16 @@ static cg__bar_dynamic_array cg__new_bar_dynamic_array();
     da.items[da.count++] = element;                                            \
   } while (0);
 
+// a dynamic array of bars, used to store the bar data in the bar graph
+typedef struct {
+  cg_bar *items;
+  size_t count;
+  size_t capacity;
+} cg__bar_dynamic_array;
+
+static cg__bar_dynamic_array cg__new_bar_dynamic_array();
+
+// stores the data for a bar graph
 typedef struct {
   cg__bar_dynamic_array bars;
   int bar_count;
@@ -252,17 +272,26 @@ typedef struct {
 } cg_bar_graph;
 
 cg_bar_graph cg_new_bar_graph(const char *title);
+// adds a bar with the given label and amount to a bar graph
 void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label, int amount,
                           cg_colour c);
+// renders a bar graph to an image
 cg_image cg_bar_graph_render(cg_bar_graph *bg);
+// frees a bar graph
 void cg_bar_graph_free(cg_bar_graph bg);
 
+// ============================================================
+// cg_pie_graph
+// ============================================================
+
+// represents a slice within a pie graph
 typedef struct {
   int amount;
   char label[CGRAPH_MAX_STRING_SIZE];
   cg_colour colour;
 } cg_slice;
 
+// again, we use a dynamic array to store the slices in the pie graph
 typedef struct {
   cg_slice *items;
   size_t count;
@@ -271,6 +300,7 @@ typedef struct {
 
 static cg__slice_dynamic_array cg__new_slice_dynamic_array();
 
+// stores all the data for a pie graph
 typedef struct {
   cg__slice_dynamic_array slices;
   int slice_count;
@@ -279,15 +309,18 @@ typedef struct {
 } cg_pie_graph;
 
 cg_pie_graph cg_new_pie_graph(const char *title);
+// adds a slice to the pie graph with the given label and amount
 void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
                             cg_colour c);
+// renders the pie graph to an image
 cg_image cg_pie_graph_render(cg_pie_graph *pg);
+// frees the pie graph
 void cg_pie_graph_free(cg_pie_graph pg);
 
 #ifdef CGRAPH_IMPLEMENTATION
 
 // ============================================================
-// cg_image Output
+// cg_image
 // ============================================================
 inline cg_image cg_new_image(int width, int height) {
   cg_image img;
@@ -438,7 +471,7 @@ inline void cg_image_export(cg_image img, const char *output_file,
 inline void cg_image_free(cg_image img) { free(img.data); }
 
 // ============================================================
-// Graphs
+// cg_bar_graph
 // ============================================================
 
 cg_bar_graph cg_new_bar_graph(const char *title) {
@@ -472,6 +505,9 @@ inline void cg_bar_graph_add_bar(cg_bar_graph *bg, const char *label,
   bg->bar_count++;
 }
 
+// helper function that determines the "nice number" to increment a graph by
+// used to determine which numbers should appear at each interval on the Y-Axis
+// of bar graphs
 static float cg__nice_num(float localRange, bool round) {
   float exponent = floor(log10(localRange));
   float fraction = localRange / pow(10, exponent);
@@ -597,6 +633,10 @@ inline static cg__slice_dynamic_array cg__new_slice_dynamic_array() {
 
   return da;
 }
+
+// ============================================================
+// cg_pie_graph
+// ============================================================
 
 inline cg_pie_graph cg_new_pie_graph(const char *title) {
   cg_pie_graph pg;

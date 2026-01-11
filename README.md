@@ -1,6 +1,6 @@
 # cgraph
 
-A single header C99 library to create graphs and plots.
+A single header C99 library to create graphs and plots with no dependencies.
 
 ⚠️Currently in extremely early alpha
 

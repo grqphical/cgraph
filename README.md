@@ -64,6 +64,7 @@ int main() {
   cg_image img = cg_pie_graph_render(&pg, false); // set this to true to render a donut chart, where only the edges of the pie chart are rendered
   cg_image_export(img, "circle.ppm", PPM);
   cg_image_free(img);
+  cg_pie_graph_free(pg);
 
 }
 

@@ -313,7 +313,9 @@ cg_pie_graph cg_new_pie_graph(const char *title);
 void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
                             cg_colour c);
 // renders the pie graph to an image
-cg_image cg_pie_graph_render(cg_pie_graph *pg);
+// if donut is true, a background coloured circle will be drawn on top, only
+// showing the outer edge of the pie chart, creating a donut chart
+cg_image cg_pie_graph_render(cg_pie_graph *pg, bool donut);
 // frees the pie graph
 void cg_pie_graph_free(cg_pie_graph pg);
 
@@ -660,7 +662,7 @@ void cg_pie_graph_add_slice(cg_pie_graph *pg, const char *label, int amount,
   pg->slice_count++;
 }
 
-cg_image cg_pie_graph_render(cg_pie_graph *pg) {
+cg_image cg_pie_graph_render(cg_pie_graph *pg, bool donut) {
   const int canvas_size = 512;
   const int padding = 80;
   const int title_y = 10;
@@ -702,6 +704,12 @@ cg_image cg_pie_graph_render(cg_pie_graph *pg) {
                            label_offset_x,
                        label_start_y + 4, (cg_colour){0, 0, 0});
   }
+
+  const float donut_hole_radius_pct = 0.7;
+  if (donut)
+    cg_image_draw_circle(&img, canvas_size / 2, canvas_size / 2,
+                         donut_hole_radius_pct * (canvas_size / 2.0 - padding),
+                         (cg_colour){255, 255, 255});
 
   return img;
 }

@@ -23,7 +23,7 @@ Simply define `CGRAPH_IMPLEMENTATION` and then include the header file:
 #include "cgraph.h"
 ```
 
-As of right now (`12-29-2025`) cgraph only supports creating bar graphs, pie charts, and donut charts. Here is an example of how you would create a bar graph:
+As of the latest commit cgraph only supports creating bar graphs, pie charts, and donut charts. Here is an example of how you would create a bar graph:
 
 ```c
 #define CGRAPH_IMPLEMENTATION

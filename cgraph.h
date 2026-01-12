@@ -705,13 +705,9 @@ cg_image cg_pie_graph_render(cg_pie_graph *pg, bool donut) {
     float ratio = (float)s.amount / pg->total;
     float slice_percentage = ratio * 100.0f;
 
-    cg_image_draw_circle_slice(
-        &img, canvas_size / 2, canvas_size / 2,
-
-        // ============================================================
-        // cg_scatter_plot
-        // ===========================================
-        canvas_size / 2 - padding, current_angle, slice_percentage, s.colour);
+    cg_image_draw_circle_slice(&img, canvas_size / 2, canvas_size / 2,
+                               canvas_size / 2 - padding, current_angle,
+                               slice_percentage, s.colour);
     current_angle += (ratio * 360.0f);
 
     int label_offset_x = i * (label_gap_x + label_rect_size +
@@ -760,22 +756,23 @@ inline void cg_scatter_plot_add_point(cg_scatter_plot *plot, cg_vector2 point,
   p.colour = colour;
 
   cg__dynamic_array_append(plot->points, p);
+  plot->count++;
 }
 
 inline cg_image cg_scatter_plot_render(cg_scatter_plot *plot) {
   const int canvas_size = 512;
-  // const int padding = 60; // margin around the whole graph
+  const int padding = 60; // margin around the whole graph
   const int title_y = 20;
   // const int label_offset = 15; // space for X-axis labels below the line
-  // const int axis_thickness = 2;
+  const int axis_thickness = 2;
 
   cg_image img = cg_new_image(canvas_size, canvas_size);
   cg_image_draw_rect(&img, 0, 0, canvas_size, canvas_size,
                      (cg_colour){255, 255, 255});
 
   // calculate the interval used for the "ticks" on the Y and X axis
-  double max_val_x = 0;
-  double max_val_y = 0;
+  double max_val_x = INT32_MIN;
+  double max_val_y = INT32_MIN;
   for (int i = 0; i < plot->count; i++) {
     if (plot->points.items[i].pos.x > max_val_x)
       max_val_x = plot->points.items[i].pos.x;
@@ -783,29 +780,37 @@ inline cg_image cg_scatter_plot_render(cg_scatter_plot *plot) {
       max_val_y = plot->points.items[i].pos.y;
   }
 
-  // const int num_ticks = 6;
-  //  double range_x = cg__nice_num(max_val_x, false);
-  //  double tick_interval_x = cg__nice_num(range_x / (num_ticks - 1), true);
-  //   double axis_max_x = ceil(max_val_x / tick_interval_x) * tick_interval_x;
+  const int graph_top = padding + 2 * title_y;
+  const int graph_left = padding;
+  const int graph_right = canvas_size - padding;
+  const int graph_bottom = canvas_size - padding;
 
-  // double range_y = cg__nice_num(max_val_y, false);
-  // double tick_interval_y = cg__nice_num(range_y / (num_ticks - 1), true);
-  //  double axis_max_y = ceil(max_val_y / tick_interval_y) * tick_interval_x;
-
-  // const int graph_top = padding + 2 * title_y;
-  //  const int graph_left = padding;
-  //  const int graph_right = canvas_size - padding;
-  // const int graph_bottom = canvas_size - padding;
-
-  // int graph_width = graph_right - graph_left;
-  // int graph_height = graph_bottom - graph_top;
-
-  // double scale = (double)graph_height / axis_max_y;
+  int graph_width = graph_right - graph_left;
+  int graph_height = graph_bottom - graph_top;
 
   // Title Rendering
   int title_x =
       (canvas_size / 2) - (strlen(plot->title) * CGRAPH_FONT_SIZE * 2);
   cg_image_draw_text(&img, plot->title, 4, title_x, title_y,
+                     (cg_colour){0, 0, 0});
+
+  // Render the points
+  double scale_x = graph_width / max_val_x;
+  double scale_y = graph_height / max_val_y;
+
+  const int point_radius = 4;
+
+  for (int i = 0; i < plot->count; i++) {
+    cg_point p = plot->points.items[i];
+    cg_image_draw_circle(&img, graph_right - (graph_width - p.pos.x * scale_x),
+                         graph_bottom - (graph_height - p.pos.y * scale_y),
+                         point_radius, p.colour);
+  }
+
+  // Border Rendering
+  cg_image_draw_rect(&img, graph_left, graph_bottom, graph_width,
+                     axis_thickness, (cg_colour){0, 0, 0});
+  cg_image_draw_rect(&img, graph_left, graph_top, axis_thickness, graph_height,
                      (cg_colour){0, 0, 0});
 
   return img;

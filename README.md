@@ -74,6 +74,11 @@ The output will look something like this:
 
 ![Pie Graph Example](assets/pie-graph.png)
 
+If you set the second paramter of `cg_pie_graph_render` to `true`, you get a chart that looks like this:
+
+![Donut Graph Example](assets/donut-graph.png)
+
+
 
 ## License
 
